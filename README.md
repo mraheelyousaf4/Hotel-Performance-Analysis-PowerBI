@@ -5,10 +5,10 @@
 ## Overview
 
 A one-page Power BI dashboard that tracks revenue, occupancy, pricing and booking quality for 25 hotels in 4 UK cities from 1 May to 31 July 2022.
+
+
 [![Power BI](https://img.shields.io/badge/Power%20BI-Live%20dashboard-F2C811?logo=powerbi&amp;logoColor=black)](https://app.powerbi.com/view?r=eyJrIjoiNzM4MmVkNzItZjczYy00ZTk0LWIyYmItMTJkNzI5MjA0ODBjIiwidCI6ImM2ZTU0OWIzLTVmNDUtNDAzMi1hYWU5LWQ0MjQ0ZGM1YjJjNCJ9)
 
-
-**[Open the live interactive dashboard](https://app.powerbi.com/view?r=eyJrIjoiNzM4MmVkNzItZjczYy00ZTk0LWIyYmItMTJkNzI5MjA0ODBjIiwidCI6ImM2ZTU0OWIzLTVmNDUtNDAzMi1hYWU5LWQ0MjQ0ZGM1YjJjNCJ9)**
 
 | Revenue realised | Bookings | Occupancy | ADR | RevPAR | Cancellation rate |
 |---|---|---|---|---|---|
