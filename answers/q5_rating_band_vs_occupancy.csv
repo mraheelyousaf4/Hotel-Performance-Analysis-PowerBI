@@ -1,0 +1,4 @@
+rating_band,properties,min_occupancy_pct,max_occupancy_pct,avg_rating
+Low (2.5 or below),4,44.4,44.84,2.34
+Mid (2.5 to 3.5),9,52.98,53.83,3.05
+High (above 3.5),12,65.6,66.4,4.28

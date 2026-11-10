@@ -1,0 +1,5 @@
+room_class,revenue_gbp,total_bookings,adr_gbp,revpar_gbp,occupancy_pct,realisation_pct,cancellation_pct,dsrn,average_rating,booking_share_pct,revenue_share_pct
+Elite,4501100.35,49505,90.92,52.38,57.61,70.0,24.96,934.0,3.6,36.78,32.35
+Standard,2569013.29,38446,66.82,38.68,57.88,70.14,24.79,722.0,3.63,28.57,18.46
+Premium,3715340.54,30566,121.55,69.99,57.58,70.17,24.88,577.0,3.59,22.71,26.7
+Presidential,3129500.71,16073,194.71,115.31,59.22,70.58,24.44,295.0,3.69,11.94,22.49

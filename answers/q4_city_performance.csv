@@ -1,0 +1,5 @@
+city,properties,revenue_gbp,total_bookings,adr_gbp,revpar_gbp,occupancy_pct,realisation_pct,cancellation_pct,dsrn,average_rating
+Manchester,8,4128849.61,43455,95.01,55.0,57.88,70.22,24.75,816.0,3.65
+London,5,3637031.36,24231,150.1,90.88,60.55,70.05,25.06,435.0,3.78
+Edinburgh,6,3553121.57,34888,101.84,59.14,58.07,70.33,24.63,653.0,3.66
+Birmingham,6,2595952.35,32016,81.08,45.22,55.77,69.92,24.99,624.0,3.41

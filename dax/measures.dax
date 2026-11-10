@@ -1,0 +1,392 @@
+// Hotel Performance Report: DAX
+// Model: fact_bookings, fact_aggregated_bookings, dim_date, dim_hotels, dim_rooms
+// All measures live in the key_measures table.
+
+// ==================================================
+// CALCULATED COLUMNS (dim_date)
+// ==================================================
+
+// Week number used for week on week comparisons
+dim_date[wn] =
+    WEEKNUM(dim_date[date])
+
+// Hotel weekend = Friday and Saturday nights (WEEKDAY type 1: Sunday = 1 ... Saturday = 7)
+dim_date[day type] =
+    VAR wkd = WEEKDAY ( dim_date[date], 1 )
+    RETURN
+        IF ( wkd > 5, "Weekend", "Weekday" )
+
+// ==================================================
+// BASE COUNTS AND TOTALS
+// Building blocks that every KPI reuses.
+// ==================================================
+
+// Realised revenue: what was actually collected after cancellations
+[Revenue] =
+    SUM(fact_bookings[revenue_realized])
+
+// Every booking, whatever its final status
+[Total Bookings] =
+    COUNT(fact_bookings[booking_id])
+
+// Bookings where the guest stayed and checked out
+[Total Checked Out] =
+    CALCULATE([Total Bookings],fact_bookings[booking_status]="Checked Out")
+
+// Bookings cancelled before arrival
+[Total cancelled bookings] =
+    CALCULATE([Total Bookings],fact_bookings[booking_status]="Cancelled")
+
+// Bookings where the guest did not arrive
+[Total no show bookings] =
+    CALCULATE([Total Bookings],fact_bookings[booking_status]="No Show")
+
+// Room nights available to sell
+[Total Capacity] =
+    SUM(fact_aggregated_bookings[capacity])
+
+// Room nights sold (from the daily aggregate table)
+[Total Succesful Bookings] =
+    SUM(fact_aggregated_bookings[successful_bookings])
+
+// Days in the current filter context
+[No of days] =
+    DATEDIFF(MIN(dim_date[date]),MAX(dim_date[date]),DAY) +1
+
+// ==================================================
+// CORE HOSPITALITY KPIS
+// The headline metrics shown on the KPI cards and in the tables.
+// ==================================================
+
+// Average Daily Rate: revenue per booking
+[ADR] =
+    DIVIDE( [Revenue], [Total Bookings],0)
+
+// Revenue per available room: combines price and occupancy
+[RevPAR] =
+    DIVIDE([Revenue],[Total Capacity],0)
+
+// Share of available room nights that were sold
+[Occupancy %] =
+    DIVIDE([Total Succesful Bookings],[Total Capacity],0)
+
+// Share of bookings that turned into a completed stay
+[Realisation %] =
+    1- ([Cancellation %]+[No Show rate %])
+
+// Share of bookings that were cancelled
+[Cancellation %] =
+    DIVIDE([Total cancelled bookings],[Total Bookings])
+
+// Share of bookings where the guest did not arrive
+[No Show rate %] =
+    DIVIDE([Total no show bookings],[Total Bookings])
+
+// Daily sellable room nights: average rooms available per day
+[DSRN] =
+    DIVIDE([Total Capacity], [No of days])
+
+// Daily booked room nights: average bookings per day
+[DBRN] =
+    DIVIDE([Total Bookings], [No of days])
+
+// Daily used room nights: average completed stays per day
+[DURN] =
+    DIVIDE([Total Checked Out],[No of days])
+
+// Average guest rating (blank ratings are ignored)
+[Average Rating] =
+    AVERAGE(fact_bookings[ratings_given])
+
+// ==================================================
+// MIX MEASURES
+// Share of bookings by platform and room class (used in the donut chart).
+// ==================================================
+
+// Share of total bookings by booking platform
+[Booking % by Platform] =
+    DIVIDE ( [Total Bookings], CALCULATE ( [Total Bookings], ALL ( fact_bookings[booking_platform] ) ) )
+
+// Share of total bookings by room class
+[Booking % by Room class] =
+    DIVIDE ( [Total Bookings], CALCULATE ( [Total Bookings], ALL ( dim_rooms[room_class] ) ) )
+
+// ==================================================
+// WEEK ON WEEK CHANGE
+// Compares the week in view with the week before. Drives the card labels and accent colours.
+// ==================================================
+
+// Revenue this week against last week
+[Revenue WoW change %] =
+    Var selv = IF(HASONEFILTER(dim_date[wn]),SELECTEDVALUE(dim_date[wn]),MAX(dim_date[wn]))
+    var revcw = CALCULATE([Revenue],dim_date[wn]= selv)
+    var revpw =  CALCULATE([Revenue],FILTER(ALL(dim_date),dim_date[wn]= selv-1))
+    
+    return
+    
+    DIVIDE(revcw,revpw,0)-1
+
+// ADR this week against last week
+[ADR WoW change %] =
+    Var selv = IF(HASONEFILTER(dim_date[wn]),SELECTEDVALUE(dim_date[wn]),MAX(dim_date[wn]))
+    var revcw = CALCULATE([ADR],dim_date[wn]= selv)
+    var revpw =  CALCULATE([ADR],FILTER(ALL(dim_date),dim_date[wn]= selv-1))
+    
+    return
+    
+    DIVIDE(revcw,revpw,0)-1
+
+// RevPAR this week against last week
+[Revpar WoW change %] =
+    Var selv = IF(HASONEFILTER(dim_date[wn]),SELECTEDVALUE(dim_date[wn]),MAX(dim_date[wn]))
+    var revcw = CALCULATE([RevPAR],dim_date[wn]= selv)
+    var revpw =  CALCULATE([RevPAR],FILTER(ALL(dim_date),dim_date[wn]= selv-1))
+    
+    return
+    
+    DIVIDE(revcw,revpw,0)-1
+
+// DSRN this week against last week
+[DSRN WoW change %] =
+    Var selv = IF(HASONEFILTER(dim_date[wn]),SELECTEDVALUE(dim_date[wn]),MAX(dim_date[wn]))
+    var revcw = CALCULATE([DSRN],dim_date[wn]= selv)
+    var revpw =  CALCULATE([DSRN],FILTER(ALL(dim_date),dim_date[wn]= selv-1))
+    
+    return
+    
+    DIVIDE(revcw,revpw,0)-1
+
+// Occupancy this week against last week
+[Occupancy WoW change %] =
+    Var selv = IF(HASONEFILTER(dim_date[wn]),SELECTEDVALUE(dim_date[wn]),MAX(dim_date[wn]))
+    var revcw = CALCULATE([Occupancy %],dim_date[wn]= selv)
+    var revpw =  CALCULATE([Occupancy %],FILTER(ALL(dim_date),dim_date[wn]= selv-1))
+    
+    return
+    
+    DIVIDE(revcw,revpw,0)-1
+
+// Realisation this week against last week
+[Realisation WoW change %] =
+    Var selv = IF(HASONEFILTER(dim_date[wn]),SELECTEDVALUE(dim_date[wn]),MAX(dim_date[wn]))
+    var revcw = CALCULATE([Realisation %],dim_date[wn]= selv)
+    var revpw =  CALCULATE([Realisation %],FILTER(ALL(dim_date),dim_date[wn]= selv-1))
+    
+    return
+    
+    DIVIDE(revcw,revpw,0)-1
+
+// Week-over-week change in Cancellation %, comparing the selected week to the prior week.
+[Cancellation WoW change %] =
+    Var selv = IF(HASONEFILTER(dim_date[wn]),SELECTEDVALUE(dim_date[wn]),MAX(dim_date[wn]))
+    var cancelcw = CALCULATE([Cancellation %],dim_date[wn]= selv)
+    var cancelpw = CALCULATE([Cancellation %],FILTER(ALL(dim_date),dim_date[wn]= selv-1))
+    
+    return
+    
+    DIVIDE(cancelcw,cancelpw,0)-1
+
+// ==================================================
+// CARD CALLOUT LABELS
+// Text shown under each KPI card: last week value and week on week change with an arrow.
+// ==================================================
+
+// Dynamic callout label for ADR: shows last week value (auto-scaled K) and WoW % change with directional arrow.
+[Callout Label Text ADR] =
+    VAR selv = IF(HASONEFILTER(dim_date[wn]),SELECTEDVALUE(dim_date[wn]),MAX(dim_date[wn]))
+    VAR cw = CALCULATE([ADR], dim_date[wn] = selv)
+    VAR pw = CALCULATE([ADR], FILTER(ALL(dim_date), dim_date[wn] = selv-1))
+    VAR chg = DIVIDE(cw,pw,0)-1
+    RETURN
+    SWITCH(TRUE(),
+        pw = BLANK(), "PRIOR WEEK NOT AVAILABLE",
+        chg > 0 && pw < 1000, "LW: " & ROUND(pw,0) & "  |  " & ROUND(chg*100,1) & "%  " & UNICHAR(9650),
+        chg > 0, "LW: " & ROUND(pw/1000,1) & "K  |  " & ROUND(chg*100,1) & "%  " & UNICHAR(9650),
+        chg < 0 && pw < 1000, "LW: " & ROUND(pw,0) & "  |  " & ROUND(chg*100,1) & "%  " & UNICHAR(9660),
+        chg < 0, "LW: " & ROUND(pw/1000,1) & "K  |  " & ROUND(chg*100,1) & "%  " & UNICHAR(9660),
+        "LW: " & ROUND(pw/1000,1) & "K  |  0.0%  " & UNICHAR(8594)
+    )
+
+// Dynamic callout label for Cancellation %: shows last week value and WoW % change with directional arrow.
+[Callout Label Text Cancellation] =
+    VAR selv = IF(HASONEFILTER(dim_date[wn]),SELECTEDVALUE(dim_date[wn]),MAX(dim_date[wn]))
+    VAR cw = CALCULATE([Cancellation %], dim_date[wn] = selv)
+    VAR pw = CALCULATE([Cancellation %], FILTER(ALL(dim_date), dim_date[wn] = selv-1))
+    VAR chg = DIVIDE(cw,pw,0)-1
+    RETURN
+    SWITCH(TRUE(),
+        pw = BLANK(), "PRIOR WEEK NOT AVAILABLE",
+        chg > 0, "LW: " & ROUND(pw*100,1) & "%  |  " & ROUND(chg*100,1) & "%  " & UNICHAR(9650),
+        chg < 0, "LW: " & ROUND(pw*100,1) & "%  |  " & ROUND(chg*100,1) & "%  " & UNICHAR(9660),
+        "LW: " & ROUND(pw*100,1) & "%  |  0.0%  " & UNICHAR(8594)
+    )
+
+// Dynamic callout label for DSRN: shows last week value (auto-scaled K if large) and WoW % change with directional arrow.
+[Callout Label Text DSRN] =
+    VAR selv = IF(HASONEFILTER(dim_date[wn]),SELECTEDVALUE(dim_date[wn]),MAX(dim_date[wn]))
+    VAR cw = CALCULATE([DSRN], dim_date[wn] = selv)
+    VAR pw = CALCULATE([DSRN], FILTER(ALL(dim_date), dim_date[wn] = selv-1))
+    VAR chg = DIVIDE(cw,pw,0)-1
+    RETURN
+    SWITCH(TRUE(),
+        pw = BLANK(), "PRIOR WEEK NOT AVAILABLE",
+        chg > 0 && pw < 1000, "LW: " & ROUND(pw,0) & "  |  " & ROUND(chg*100,1) & "%  " & UNICHAR(9650),
+        chg > 0, "LW: " & ROUND(pw/1000,1) & "K  |  " & ROUND(chg*100,1) & "%  " & UNICHAR(9650),
+        chg < 0 && pw < 1000, "LW: " & ROUND(pw,0) & "  |  " & ROUND(chg*100,1) & "%  " & UNICHAR(9660),
+        chg < 0, "LW: " & ROUND(pw/1000,1) & "K  |  " & ROUND(chg*100,1) & "%  " & UNICHAR(9660),
+        "LW: " & ROUND(pw,0) & "  |  0.0%  " & UNICHAR(8594)
+    )
+
+// Dynamic callout label for Occupancy %: shows last week value and WoW % change with directional arrow.
+[Callout Label Text Occupancy] =
+    VAR selv = IF(HASONEFILTER(dim_date[wn]),SELECTEDVALUE(dim_date[wn]),MAX(dim_date[wn]))
+    VAR cw = CALCULATE([Occupancy %], dim_date[wn] = selv)
+    VAR pw = CALCULATE([Occupancy %], FILTER(ALL(dim_date), dim_date[wn] = selv-1))
+    VAR chg = DIVIDE(cw,pw,0)-1
+    RETURN
+    SWITCH(TRUE(),
+        pw = BLANK(), "PRIOR WEEK NOT AVAILABLE",
+        chg > 0, "LW: " & ROUND(pw*100,1) & "%  |  " & ROUND(chg*100,1) & "%  " & UNICHAR(9650),
+        chg < 0, "LW: " & ROUND(pw*100,1) & "%  |  " & ROUND(chg*100,1) & "%  " & UNICHAR(9660),
+        "LW: " & ROUND(pw*100,1) & "%  |  0.0%  " & UNICHAR(8594)
+    )
+
+// Dynamic callout label for Realisation %: shows last week value and WoW % change with directional arrow.
+[Callout Label Text Realisation] =
+    VAR selv = IF(HASONEFILTER(dim_date[wn]),SELECTEDVALUE(dim_date[wn]),MAX(dim_date[wn]))
+    VAR cw = CALCULATE([Realisation %], dim_date[wn] = selv)
+    VAR pw = CALCULATE([Realisation %], FILTER(ALL(dim_date), dim_date[wn] = selv-1))
+    VAR chg = DIVIDE(cw,pw,0)-1
+    RETURN
+    SWITCH(TRUE(),
+        pw = BLANK(), "PRIOR WEEK NOT AVAILABLE",
+        chg > 0, "LW: " & ROUND(pw*100,1) & "%  |  " & ROUND(chg*100,1) & "%  " & UNICHAR(9650),
+        chg < 0, "LW: " & ROUND(pw*100,1) & "%  |  " & ROUND(chg*100,1) & "%  " & UNICHAR(9660),
+        "LW: " & ROUND(pw*100,1) & "%  |  0.0%  " & UNICHAR(8594)
+    )
+
+// Dynamic callout label for RevPAR: shows last week value (auto-scaled K) and WoW % change with directional arrow.
+[Callout Label Text RevPAR] =
+    VAR selv = IF(HASONEFILTER(dim_date[wn]),SELECTEDVALUE(dim_date[wn]),MAX(dim_date[wn]))
+    VAR cw = CALCULATE([RevPAR], dim_date[wn] = selv)
+    VAR pw = CALCULATE([RevPAR], FILTER(ALL(dim_date), dim_date[wn] = selv-1))
+    VAR chg = DIVIDE(cw,pw,0)-1
+    RETURN
+    SWITCH(TRUE(),
+        pw = BLANK(), "PRIOR WEEK NOT AVAILABLE",
+        chg > 0 && pw < 1000, "LW: " & ROUND(pw,0) & "  |  " & ROUND(chg*100,1) & "%  " & UNICHAR(9650),
+        chg > 0, "LW: " & ROUND(pw/1000,1) & "K  |  " & ROUND(chg*100,1) & "%  " & UNICHAR(9650),
+        chg < 0 && pw < 1000, "LW: " & ROUND(pw,0) & "  |  " & ROUND(chg*100,1) & "%  " & UNICHAR(9660),
+        chg < 0, "LW: " & ROUND(pw/1000,1) & "K  |  " & ROUND(chg*100,1) & "%  " & UNICHAR(9660),
+        "LW: " & ROUND(pw/1000,1) & "K  |  0.0%  " & UNICHAR(8594)
+    )
+
+// Dynamic callout label for Revenue: shows last week value (auto-scaled K/M/Bn) and WoW % change with directional arrow.
+[Callout Label Text Revenue] =
+    VAR selv = IF(HASONEFILTER(dim_date[wn]),SELECTEDVALUE(dim_date[wn]),MAX(dim_date[wn]))
+    VAR cw = CALCULATE([Revenue], dim_date[wn] = selv)
+    VAR pw = CALCULATE([Revenue], FILTER(ALL(dim_date), dim_date[wn] = selv-1))
+    VAR chg = DIVIDE(cw,pw,0)-1
+    RETURN
+    SWITCH(TRUE(),
+        pw = BLANK(), "PRIOR WEEK NOT AVAILABLE",
+        chg > 0 && pw < 1000000, "LW: " & ROUND(pw/1000,1) & "K  |  " & ROUND(chg*100,1) & "%  " & UNICHAR(9650),
+        chg > 0 && pw < 1000000000, "LW: " & ROUND(pw/1000000,2) & "M  |  " & ROUND(chg*100,1) & "%  " & UNICHAR(9650),
+        chg > 0, "LW: " & ROUND(pw/1000000000,2) & "Bn  |  " & ROUND(chg*100,1) & "%  " & UNICHAR(9650),
+        chg < 0 && pw < 1000000, "LW: " & ROUND(pw/1000,1) & "K  |  " & ROUND(chg*100,1) & "%  " & UNICHAR(9660),
+        chg < 0 && pw < 1000000000, "LW: " & ROUND(pw/1000000,2) & "M  |  " & ROUND(chg*100,1) & "%  " & UNICHAR(9660),
+        chg < 0, "LW: " & ROUND(pw/1000000000,2) & "Bn  |  " & ROUND(chg*100,1) & "%  " & UNICHAR(9660),
+        "LW: " & ROUND(pw/1000000,2) & "M  |  0.0%  " & UNICHAR(8594)
+    )
+
+// ==================================================
+// CONDITIONAL FORMATTING
+// Colour codes returned to visuals through the fx (field value) option.
+// ==================================================
+
+// Rating colour in the property table: green 3.5+, amber above 2.5, red 2.5 or below
+[Average Rating Txt Color] =
+    SWITCH(
+        TRUE(),
+        ISBLANK([Average Rating]),"Grey",
+        [Average Rating]>= 3.5 , "Green",
+        [Average Rating]< 3.5 && [Average Rating]>2.5 , "#F8CD63",
+        [Average Rating]<=2.5 , "Red"
+    )
+
+// Accent bar colour for ADR card: green if up WoW, red if down, grey if no change.
+[COLOR Accent Bar ADR] =
+    VAR chg = [ADR WoW change %]
+    RETURN
+    SWITCH(TRUE(),
+        ISBLANK(chg), "#BFBFBF",
+        ROUND(chg, 3) = 0, "#BFBFBF",
+        chg > 0, "#40916C",
+        "#DA3D4D"
+    )
+
+// Accent bar colour for Cancellation % card (inverse metric): red if up WoW, green if down, grey if no change.
+[COLOR Accent Bar Cancellation] =
+    VAR chg = [Cancellation WoW change %]
+    RETURN
+    SWITCH(TRUE(),
+        ISBLANK(chg), "#BFBFBF",
+        ROUND(chg, 3) = 0, "#BFBFBF",
+        chg > 0, "#DA3D4D",
+        "#40916C"
+    )
+
+// Accent bar colour for DSRN card: green if up WoW, red if down, grey if no change.
+[COLOR Accent Bar DSRN] =
+    VAR chg = [DSRN WoW change %]
+    RETURN
+    SWITCH(TRUE(),
+        ISBLANK(chg), "#BFBFBF",
+        ROUND(chg, 3) = 0, "#BFBFBF",
+        chg > 0, "#40916C",
+        "#DA3D4D"
+    )
+
+// Accent bar colour for Occupancy % card: green if up WoW, red if down, grey if no change.
+[COLOR Accent Bar Occupancy] =
+    VAR chg = [Occupancy WoW change %]
+    RETURN
+    SWITCH(TRUE(),
+        ISBLANK(chg), "#BFBFBF",
+        ROUND(chg, 3) = 0, "#BFBFBF",
+        chg > 0, "#40916C",
+        "#DA3D4D"
+    )
+
+// Accent bar colour for Realisation % card: green if up WoW, red if down, grey if no change.
+[COLOR Accent Bar Realisation] =
+    VAR chg = [Realisation WoW change %]
+    RETURN
+    SWITCH(TRUE(),
+        ISBLANK(chg), "#BFBFBF",
+        ROUND(chg, 3) = 0, "#BFBFBF",
+        chg > 0, "#40916C",
+        "#DA3D4D"
+    )
+
+// Accent bar colour for RevPAR card: green if up WoW, red if down, grey if no change.
+[COLOR Accent Bar RevPAR] =
+    VAR chg = [Revpar WoW change %]
+    RETURN
+    SWITCH(TRUE(),
+        ISBLANK(chg), "#BFBFBF",
+        ROUND(chg, 3) = 0, "#BFBFBF",
+        chg > 0, "#40916C",
+        "#DA3D4D"
+    )
+
+// Accent bar colour for Revenue card: green if up WoW, red if down, grey if no change.
+[COLOR Accent Bar Revenue] =
+    VAR chg = [Revenue WoW change %]
+    RETURN
+    SWITCH(TRUE(),
+        ISBLANK(chg), "#BFBFBF",
+        ROUND(chg, 3) = 0, "#BFBFBF",
+        chg > 0, "#40916C",
+        "#DA3D4D"
+    )
